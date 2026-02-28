@@ -1,0 +1,6 @@
+@G4S_Card_Management_Portal_HostAddress = http://localhost:5239
+
+GET {{G4S_Card_Management_Portal_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

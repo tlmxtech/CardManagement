@@ -1,0 +1,747 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G4S Card Management Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: '#1e3a8a', secondary: '#3b82f6', success: '#10b981', background: '#f3f4f6' }
+                }
+            }
+        }
+    </script>
+    <style>
+        #deviceListContainer, #cardListContainer {
+            content-visibility: auto;
+            contain-intrinsic-size: 0 500px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background min-h-screen text-gray-800 font-sans antialiased">
+
+    <nav class="bg-primary text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-id-card-clip text-2xl mr-3"></i>
+                    <span class="font-bold text-xl tracking-wider">Card Management Portal</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="adminControls" class="hidden flex items-center space-x-2">
+                        <button onclick="openAdminPanel()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded text-sm transition shadow">
+                            <i class="fa-solid fa-shield-halved mr-1"></i> Admin
+                        </button>
+                        <select id="companySelector" onchange="switchCompany(this.value)"
+                                class="text-sm border-none rounded bg-blue-800 text-white px-2 py-1 focus:ring-0 cursor-pointer"></select>
+                    </div>
+                    <span id="userCompanyDisplay" class="text-sm hidden">
+                        <i class="fa-solid fa-building"></i> <span id="companyNameLabel">...</span>
+                    </span>
+                    <span id="navUsername" class="text-sm opacity-75"></span>
+                    <button onclick="logout()" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-sm transition">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-700">Sync Manager</h1>
+            <div class="flex items-center gap-2">
+                <button id="btnGetCardList" onclick="requestCardList()" disabled
+                        class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                        title="Request current card list from selected device(s)">
+                    <i class="fa-solid fa-list-check mr-2"></i> Get Card List
+                </button>
+                <div class="w-px h-8 bg-gray-300 mx-1"></div>
+                <button id="btnInsert" onclick="startSync('Insert')"
+                        class="bg-success hover:bg-green-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95"
+                        title="Add selected cards to devices (skips cards already present)">
+                    <i class="fa-solid fa-plus mr-2"></i> Insert
+                </button>
+                <button id="btnReplace" onclick="startSync('Replace')"
+                        class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95"
+                        title="Clear all cards on devices, then insert selected cards">
+                    <i class="fa-solid fa-arrow-right-arrow-left mr-2"></i> Replace
+                </button>
+                <button id="btnRemove" onclick="startSync('Remove')"
+                        class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95"
+                        title="Remove selected cards from devices">
+                    <i class="fa-solid fa-trash mr-2"></i> Remove
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Devices Panel -->
+            <div class="bg-white rounded-lg shadow-md flex flex-col h-[78vh]">
+                <div class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center">
+                        <h2 class="text-lg font-semibold text-gray-700 mr-4"><i class="fa-solid fa-truck-fast text-secondary mr-2"></i> Devices</h2>
+                        <button id="btnSyncDevices" onclick="pullDevices()" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded transition flex items-center shadow-sm border border-blue-200">
+                            <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Sync from API
+                        </button>
+                    </div>
+                    <div class="flex space-x-2">
+                        <select id="deviceGroupFilter" onchange="renderDevices()" class="border-gray-300 rounded text-sm p-1 max-w-[120px]"><option value="All">All Groups</option></select>
+                        <input type="text" id="deviceSearch" oninput="renderDevices()" placeholder="Search..." class="border rounded text-sm p-1 w-28 lg:w-40">
+                    </div>
+                </div>
+                <div class="p-2 border-b flex justify-between items-center px-4 bg-gray-100">
+                    <div>
+                        <input type="checkbox" id="selectAllDevices" onchange="toggleAllDevices(this)" class="mr-2 h-4 w-4 text-primary rounded cursor-pointer">
+                        <label for="selectAllDevices" class="text-sm font-medium text-gray-600 cursor-pointer">Select All</label>
+                    </div>
+                    <span id="selectedDeviceCount" class="text-[10px] font-bold text-primary bg-blue-100 px-2 py-1 rounded-full">0 Selected</span>
+                </div>
+                <div class="flex-1 overflow-y-auto" id="deviceListContainer"></div>
+            </div>
+
+            <!-- Cards Panel -->
+            <div class="bg-white rounded-lg shadow-md flex flex-col h-[78vh]">
+                <div class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex items-center">
+                        <h2 class="text-lg font-semibold text-gray-700 mr-4"><i class="fa-solid fa-address-card text-secondary mr-2"></i> Cards</h2>
+                        <button id="btnSyncCards" onclick="pullCards()" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-2 py-1 rounded transition flex items-center shadow-sm border border-blue-200">
+                            <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Sync from API
+                        </button>
+                    </div>
+                    <div class="flex space-x-2">
+                        <select id="cardGroupFilter" onchange="renderCards()" class="border-gray-300 rounded text-sm p-1 max-w-[120px]"><option value="All">All Groups</option></select>
+                        <input type="text" id="cardSearch" oninput="renderCards()" placeholder="Search..." class="border rounded text-sm p-1 w-28 lg:w-40">
+                    </div>
+                </div>
+                <div class="p-2 border-b flex justify-between items-center px-4 bg-gray-100">
+                    <div>
+                        <input type="checkbox" id="selectAllCards" onchange="toggleAllCards(this)" class="mr-2 h-4 w-4 text-secondary rounded cursor-pointer">
+                        <label for="selectAllCards" class="text-sm font-medium text-gray-600 cursor-pointer">Select All</label>
+                    </div>
+                    <span id="selectedCardCount" class="text-[10px] font-bold text-secondary bg-blue-100 px-2 py-1 rounded-full">0 Selected</span>
+                </div>
+                <div class="flex-1 overflow-y-auto" id="cardListContainer"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Admin Modal -->
+    <div id="adminModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 overflow-y-auto h-full w-full flex items-start justify-center z-50 p-4 pt-10">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-6xl w-full">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-gray-800 flex items-center"><i class="fa-solid fa-shield-halved text-indigo-600 mr-3"></i> Admin Console</h2>
+                <button onclick="closeAdminPanel()" class="text-gray-400 hover:text-red-500 transition text-2xl">&times;</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex gap-2 mb-6 border-b">
+                <button onclick="showAdminTab('create')" id="tabCreate" class="px-4 py-2 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-700">Create</button>
+                <button onclick="showAdminTab('manage')" id="tabManage" class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700">Manage</button>
+            </div>
+
+            <!-- Create Tab -->
+            <div id="panelCreate">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                        <h3 class="font-bold mb-4 text-indigo-700 text-sm uppercase tracking-wider">New Reseller</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="newResellerName" placeholder="Reseller Name" class="w-full border rounded-lg p-2.5 text-sm">
+                            <input type="text" id="newResellerUsername" placeholder="API Username" class="w-full border rounded-lg p-2.5 text-sm">
+                            <input type="password" id="newResellerPassword" placeholder="API Password" class="w-full border rounded-lg p-2.5 text-sm">
+                            <button onclick="saveReseller()" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition">Save Reseller</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                        <h3 class="font-bold mb-4 text-success text-sm uppercase tracking-wider">New Company</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="newCompName" placeholder="Company Name" class="w-full border rounded-lg p-2.5 text-sm">
+                            <input type="text" id="newCompMobUser" placeholder="Mobility User" class="w-full border rounded-lg p-2.5 text-sm">
+                            <input type="password" id="newCompMobPass" placeholder="Mobility Pass" class="w-full border rounded-lg p-2.5 text-sm">
+                            <select id="newCompReseller" class="w-full border rounded-lg p-2.5 text-sm bg-white"></select>
+                            <button onclick="saveCompany()" class="w-full bg-success text-white font-bold py-2.5 rounded-lg hover:bg-green-700 transition">Save Company</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                        <h3 class="font-bold mb-4 text-primary text-sm uppercase tracking-wider">New User</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="newUserUsername" placeholder="Username" class="w-full border rounded-lg p-2.5 text-sm">
+                            <input type="password" id="newUserPassword" placeholder="Password" class="w-full border rounded-lg p-2.5 text-sm">
+                            <select id="newUserRole" class="w-full border rounded-lg p-2.5 text-sm bg-white">
+                                <option value="CompanyUser">Company User</option>
+                                <option value="Admin">System Administrator</option>
+                            </select>
+                            <select id="newUserCompany" class="w-full border rounded-lg p-2.5 text-sm bg-white"></select>
+                            <button onclick="saveUser()" class="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-800 transition">Save User</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manage Tab -->
+            <div id="panelManage" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Companies list -->
+                    <div>
+                        <h3 class="font-bold mb-3 text-gray-700 text-sm uppercase tracking-wider">Companies</h3>
+                        <div id="companiesList" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
+                    </div>
+                    <!-- Users list -->
+                    <div>
+                        <h3 class="font-bold mb-3 text-gray-700 text-sm uppercase tracking-wider">Users</h3>
+                        <div id="usersList" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="notificationModal" class="hidden fixed inset-0 bg-black bg-opacity-60 overflow-y-auto h-full w-full flex items-center justify-center z-[100] p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center border-t-4 border-primary">
+            <div id="modalIcon" class="mb-5 text-5xl"></div>
+            <h3 id="modalTitle" class="text-xl font-bold text-gray-900 mb-2"></h3>
+            <p id="modalMessage" class="text-sm text-gray-500 mb-6 leading-relaxed"></p>
+            <button onclick="closeModal()" class="w-full bg-gray-100 text-gray-800 font-bold py-3 rounded-xl hover:bg-gray-200 transition">Dismiss</button>
+        </div>
+    </div>
+
+    <script>
+        // ── Auth guard ─────────────────────────────────────────────────────────────
+        const storedUser = sessionStorage.getItem('currentUser');
+        if (!storedUser) { window.location.replace('/login.html'); }
+
+        let state = {
+            currentUser: storedUser ? JSON.parse(storedUser) : null,
+            activeCompanyId: null,
+            resellers: [],
+            companies: [],
+            allUsers: [],
+            devices: [],
+            cards: [],
+            selectedDeviceIds: new Set(),
+            selectedCardIds: new Set(),
+            deviceCardMap: {},
+            pollTimers: {}
+        };
+
+        const POLL_INTERVAL_MS = 2 * 60 * 1000;
+
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        function logout() {
+            sessionStorage.removeItem('currentUser');
+            window.location.replace('/login.html');
+        }
+
+        async function initApp() {
+            try {
+                // Show username in navbar
+                document.getElementById('navUsername').textContent = state.currentUser.username;
+
+                await fetchCompanies();
+                await fetchResellers();
+                initAdminOrUser();
+                populateAdminDropdowns();
+
+                if (state.currentUser.role === 'Admin') {
+                    if (state.companies.length > 0) {
+                        state.activeCompanyId = state.companies[0].id;
+                        document.getElementById('companySelector').value = state.activeCompanyId;
+                        await loadCompanyData(state.activeCompanyId);
+                    }
+                } else {
+                    // Company user: lock to their company
+                    state.activeCompanyId = state.currentUser.companyId;
+                    if (state.activeCompanyId) await loadCompanyData(state.activeCompanyId);
+                }
+
+                renderDevices();
+                renderCards();
+            } catch (err) { console.error("Init failed:", err); }
+        }
+
+        async function fetchCompanies() { const r = await fetch('/api/Admin/companies'); if (r.ok) state.companies = await r.json(); }
+        async function fetchResellers() { const r = await fetch('/api/Admin/resellers'); if (r.ok) state.resellers = await r.json(); }
+        async function fetchAllUsers() { const r = await fetch('/api/Admin/users'); if (r.ok) state.allUsers = await r.json(); }
+
+        async function fetchDevices(companyId) {
+            const r = await fetch(`/api/CardManagement/devices?companyId=${companyId}`);
+            state.devices = r.ok ? await r.json() : [];
+            state.devices.forEach(d => {
+                if (d.pollStatus === 'Pending' && d.pollJobId) startPollingTimer(d.id, d.pollJobId);
+            });
+        }
+
+        async function fetchCards(companyId) {
+            const r = await fetch(`/api/CardManagement/cards?companyId=${companyId}`);
+            state.cards = r.ok ? await r.json() : [];
+        }
+
+        async function loadCompanyData(companyId) {
+            await Promise.all([fetchDevices(companyId), fetchCards(companyId)]);
+            populateDropdowns(); renderDevices(); renderCards();
+        }
+
+        // ── Device card map ────────────────────────────────────────────────────────
+
+        async function loadDeviceCards(deviceId) {
+            if (state.deviceCardMap[deviceId] !== undefined) return;
+            const r = await fetch(`/api/CardManagement/device-cards/${deviceId}`);
+            state.deviceCardMap[deviceId] = new Set(r.ok ? await r.json() : []);
+        }
+
+        function applyCardPreSelection() {
+            if (state.selectedDeviceIds.size === 1) {
+                const deviceId = [...state.selectedDeviceIds][0];
+                state.selectedCardIds = new Set(state.deviceCardMap[deviceId] ?? []);
+            }
+            renderCards();
+            updateCardCount();
+        }
+
+        // ── Poll status badge ──────────────────────────────────────────────────────
+
+        function pollStatusBadge(status) {
+            if (!status) return '';
+            const cfg = {
+                Pending: { cls: 'bg-blue-100 text-blue-700', icon: 'fa-spinner fa-spin', label: 'Polling' },
+                Completed: { cls: 'bg-green-100 text-green-700', icon: 'fa-circle-check', label: 'Updated' },
+                Failed: { cls: 'bg-red-100 text-red-700', icon: 'fa-circle-xmark', label: 'Failed' }
+            };
+            const c = cfg[status] ?? { cls: 'bg-gray-100 text-gray-500', icon: 'fa-circle', label: status };
+            return `<span class="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded ${c.cls}">
+                            <i class="fa-solid ${c.icon} mr-0.5"></i>${c.label}
+                        </span>`;
+        }
+
+        // ── Rendering ─────────────────────────────────────────────────────────────
+
+        function renderDevices() {
+            const container = document.getElementById('deviceListContainer');
+            const search = document.getElementById('deviceSearch').value.toLowerCase();
+            const group = document.getElementById('deviceGroupFilter').value;
+            const filtered = state.devices.filter(d => {
+                const grp = d.groupName || 'Unassigned';
+                return ((d.name || '').toLowerCase().includes(search) || (d.imei && d.imei.includes(search)))
+                    && (group === 'All' || grp === group);
+            });
+            if (!filtered.length) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-400 italic text-sm">No devices matching criteria.</div>';
+                updateDeviceCount(); return;
+            }
+            container.innerHTML = filtered.map(d => {
+                const checked = state.selectedDeviceIds.has(d.id) ? 'checked' : '';
+                const type = (d.trackerTypeName || '').toLowerCase();
+                const icon = type.includes('jointech') ? 'fa-satellite-dish text-blue-500' : 'fa-location-dot text-green-500';
+                return `
+                    <div class="flex items-center p-3.5 border-b border-gray-100 hover:bg-blue-50 transition cursor-pointer group" onclick="document.getElementById('dev_${d.id}').click()">
+                        <input type="checkbox" id="dev_${d.id}" value="${d.id}" ${checked}
+                            onchange="toggleDevice(${d.id}, event)"
+                            class="mr-4 h-5 w-5 text-primary rounded border-gray-300 transition"
+                            onclick="event.stopPropagation()">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                                    <p class="text-sm font-bold text-gray-800 group-hover:text-primary transition truncate">${d.name || 'Unnamed Vehicle'}</p>
+                                    ${pollStatusBadge(d.pollStatus)}
+                                </div>
+                                <span class="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">${d.groupName || 'Unassigned'}</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-1">
+                                <i class="fa-solid ${icon} mr-1 opacity-70"></i>
+                                <span class="text-secondary font-semibold uppercase">${d.trackerTypeName || 'Unknown'}</span>
+                                <span class="mx-1.5 text-gray-300">|</span>
+                                <span class="font-mono">IMEI: ${d.imei || 'N/A'}</span>
+                            </p>
+                        </div>
+                    </div>`;
+            }).join('');
+            updateDeviceCount();
+        }
+
+        function renderCards() {
+            const container = document.getElementById('cardListContainer');
+            const search = document.getElementById('cardSearch').value.toLowerCase();
+            const group = document.getElementById('cardGroupFilter').value;
+            const filtered = state.cards.filter(c => {
+                const grp = c.groupName || 'Unassigned';
+                return ((c.displayName || '').toLowerCase().includes(search) || (c.driverID || '').toLowerCase().includes(search))
+                    && (group === 'All' || grp === group);
+            });
+            if (!filtered.length) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-400 italic text-sm">No cards matching criteria.</div>';
+                updateCardCount(); return;
+            }
+            container.innerHTML = filtered.map(c => {
+                const checked = state.selectedCardIds.has(c.id) ? 'checked' : '';
+                return `
+                    <div class="flex items-center p-3.5 border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer group" onclick="document.getElementById('card_${c.id}').click()">
+                        <input type="checkbox" id="card_${c.id}" value="${c.id}" ${checked}
+                            onchange="toggleCard(${c.id}, event)"
+                            class="mr-4 h-5 w-5 text-secondary rounded border-gray-300 transition"
+                            onclick="event.stopPropagation()">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition">${c.displayName || 'Unnamed Driver'}</p>
+                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">${c.groupName || 'Unassigned'}</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-1">
+                                <span class="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md font-bold text-[9px] mr-2 uppercase">${c.tag_Type || 'Unknown Type'}</span>
+                                <span class="font-mono">ID: ${c.driverID}</span>
+                                <span class="mx-1.5 text-gray-300">|</span>
+                                <span class="font-mono opacity-80">Tag: ${c.tag_ID || 'None'}</span>
+                            </p>
+                        </div>
+                    </div>`;
+            }).join('');
+            updateCardCount();
+        }
+
+        // ── Admin panel ────────────────────────────────────────────────────────────
+
+        function showAdminTab(tab) {
+            document.getElementById('panelCreate').classList.toggle('hidden', tab !== 'create');
+            document.getElementById('panelManage').classList.toggle('hidden', tab !== 'manage');
+            document.getElementById('tabCreate').className = `px-4 py-2 text-sm font-semibold border-b-2 ${tab === 'create' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
+            document.getElementById('tabManage').className = `px-4 py-2 text-sm font-semibold border-b-2 ${tab === 'manage' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
+            if (tab === 'manage') renderManageLists();
+        }
+
+        function renderManageLists() {
+            const compDiv = document.getElementById('companiesList');
+            compDiv.innerHTML = state.companies.length ? state.companies.map(c => `
+                    <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">${c.name}</p>
+                            <p class="text-[11px] text-gray-500">ID: ${c.id}</p>
+                        </div>
+                        <button onclick="deleteCompany(${c.id}, '${c.name.replace(/'/g, "\\'")}')"
+                            class="text-red-400 hover:text-red-600 transition p-1.5 rounded hover:bg-red-50" title="Delete company">
+                            <i class="fa-solid fa-trash text-sm"></i>
+                        </button>
+                    </div>`).join('') : '<p class="text-sm text-gray-400 italic">No companies.</p>';
+
+            const userDiv = document.getElementById('usersList');
+            userDiv.innerHTML = state.allUsers.length ? state.allUsers.map(u => `
+                    <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-800">${u.username}
+                                <span class="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded ${u.role === 'Admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'} uppercase">${u.role}</span>
+                            </p>
+                            <p class="text-[11px] text-gray-500">${u.companyName ? `Company: ${u.companyName}` : 'No company'}</p>
+                        </div>
+                        <button onclick="deleteUser(${u.id}, '${u.username.replace(/'/g, "\\'")}')"
+                            class="text-red-400 hover:text-red-600 transition p-1.5 rounded hover:bg-red-50" title="Delete user"
+                            ${u.id === state.currentUser.id ? 'disabled title="Cannot delete yourself"' : ''}>
+                            <i class="fa-solid fa-trash text-sm"></i>
+                        </button>
+                    </div>`).join('') : '<p class="text-sm text-gray-400 italic">No users.</p>';
+        }
+
+        async function deleteCompany(id, name) {
+            if (!confirm(`Delete company "${name}" and ALL its devices, cards and users?\n\nThis cannot be undone.`)) return;
+            const r = await fetch(`/api/Admin/companies/${id}`, { method: 'DELETE' });
+            if (r.ok) {
+                await fetchCompanies();
+                initAdminOrUser();
+                populateAdminDropdowns();
+                renderManageLists();
+                if (state.activeCompanyId === id) {
+                    state.activeCompanyId = state.companies[0]?.id ?? null;
+                    if (state.activeCompanyId) await loadCompanyData(state.activeCompanyId);
+                }
+                showModal('Done', `Company "${name}" deleted.`, 'fa-check text-green-500');
+            } else {
+                showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
+            }
+        }
+
+        async function deleteUser(id, username) {
+            if (!confirm(`Delete user "${username}"?`)) return;
+            const r = await fetch(`/api/Admin/users/${id}`, { method: 'DELETE' });
+            if (r.ok) {
+                await fetchAllUsers();
+                renderManageLists();
+                showModal('Done', `User "${username}" deleted.`, 'fa-check text-green-500');
+            } else {
+                showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
+            }
+        }
+
+        // ── Event handlers ─────────────────────────────────────────────────────────
+
+        async function toggleDevice(id, e) {
+            if (e.target.checked) {
+                state.selectedDeviceIds.add(id);
+                await loadDeviceCards(id);
+                applyCardPreSelection();
+            } else {
+                state.selectedDeviceIds.delete(id);
+                if (state.selectedDeviceIds.size === 0) { state.selectedCardIds.clear(); renderCards(); updateCardCount(); }
+                else applyCardPreSelection();
+            }
+            updateDeviceCount();
+            updateGetCardListButton();
+        }
+
+        function toggleCard(id, e) {
+            if (e.target.checked) state.selectedCardIds.add(id); else state.selectedCardIds.delete(id);
+            updateCardCount();
+        }
+
+        function toggleAllDevices(el) {
+            document.querySelectorAll('#deviceListContainer input[type="checkbox"]').forEach(cb => {
+                cb.checked = el.checked;
+                const id = parseInt(cb.value);
+                if (el.checked) state.selectedDeviceIds.add(id); else state.selectedDeviceIds.delete(id);
+            });
+            updateDeviceCount(); updateGetCardListButton();
+            if (el.checked) {
+                Promise.all([...state.selectedDeviceIds].map(id => loadDeviceCards(id))).then(() => applyCardPreSelection());
+            } else { state.selectedCardIds.clear(); renderCards(); updateCardCount(); }
+        }
+
+        function toggleAllCards(el) {
+            document.querySelectorAll('#cardListContainer input[type="checkbox"]').forEach(cb => {
+                cb.checked = el.checked;
+                const id = parseInt(cb.value);
+                if (el.checked) state.selectedCardIds.add(id); else state.selectedCardIds.delete(id);
+            });
+            updateCardCount();
+        }
+
+        function updateDeviceCount() { document.getElementById('selectedDeviceCount').innerText = `${state.selectedDeviceIds.size} Selected`; }
+        function updateCardCount() { document.getElementById('selectedCardCount').innerText = `${state.selectedCardIds.size} Selected`; }
+        function updateGetCardListButton() { document.getElementById('btnGetCardList').disabled = state.selectedDeviceIds.size === 0; }
+
+        // ── Pull from API ──────────────────────────────────────────────────────────
+
+        async function pullDevices() {
+            if (!state.activeCompanyId) return;
+            const btn = document.getElementById('btnSyncDevices');
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Working...';
+            try {
+                const r = await fetch(`/api/CardManagement/pull-devices?companyId=${state.activeCompanyId}`, { method: 'POST' });
+                if (r.ok) {
+                    state.deviceCardMap = {}; // invalidate cache — background fetch may have updated data
+                    await loadCompanyData(state.activeCompanyId);
+                    showModal('Done', 'Devices synced. Card lists are being fetched in the background.', 'fa-circle-check text-green-500');
+                } else {
+                    showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
+                }
+            } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down mr-1"></i> Sync from API'; }
+        }
+
+        async function pullCards() {
+            if (!state.activeCompanyId) return;
+            const btn = document.getElementById('btnSyncCards');
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Working...';
+            try {
+                const r = await fetch(`/api/CardManagement/pull-cards?companyId=${state.activeCompanyId}`, { method: 'POST' });
+                if (r.ok) await loadCompanyData(state.activeCompanyId);
+                else showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
+            } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down mr-1"></i> Sync from API'; }
+        }
+
+        // ── Get Card List / polling ────────────────────────────────────────────────
+
+        async function requestCardList() {
+            if (!state.selectedDeviceIds.size) return;
+            const btn = document.getElementById('btnGetCardList');
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Sending...';
+            let sentCount = 0;
+            for (const deviceId of [...state.selectedDeviceIds]) {
+                try {
+                    const r = await fetch(`/api/CardManagement/request-card-list/${deviceId}`, { method: 'POST' });
+                    if (r.ok) {
+                        const data = await r.json();
+                        updateDevicePollState(deviceId, 'Pending', data.jobId);
+                        startPollingTimer(deviceId, data.jobId);
+                        sentCount++;
+                    }
+                } catch (err) { console.error(`requestCardList failed for device ${deviceId}:`, err); }
+            }
+            btn.innerHTML = '<i class="fa-solid fa-list-check mr-2"></i> Get Card List';
+            btn.disabled = state.selectedDeviceIds.size === 0;
+            renderDevices();
+            if (sentCount > 0)
+                showModal('Polling Started', `Request sent to ${sentCount} device(s). Card list badge updates automatically when the device responds.`, 'fa-satellite-dish text-blue-500');
+        }
+
+        function updateDevicePollState(deviceId, status, jobId) {
+            const d = state.devices.find(d => d.id === deviceId);
+            if (d) { d.pollStatus = status; d.pollJobId = jobId; }
+        }
+
+        function startPollingTimer(deviceId, jobId) {
+            if (state.pollTimers[jobId]) return;
+            state.pollTimers[jobId] = setInterval(() => checkPollJob(deviceId, jobId), POLL_INTERVAL_MS);
+        }
+
+        async function checkPollJob(deviceId, jobId) {
+            try {
+                const r = await fetch(`/api/CardManagement/poll-status/${jobId}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                if (data.status === 'Completed') {
+                    clearInterval(state.pollTimers[jobId]); delete state.pollTimers[jobId];
+                    delete state.deviceCardMap[deviceId];
+                    updateDevicePollState(deviceId, 'Completed', jobId);
+                    renderDevices();
+                    if (state.selectedDeviceIds.has(deviceId)) { await loadDeviceCards(deviceId); applyCardPreSelection(); }
+                } else if (data.status === 'Failed') {
+                    clearInterval(state.pollTimers[jobId]); delete state.pollTimers[jobId];
+                    updateDevicePollState(deviceId, 'Failed', jobId);
+                    renderDevices();
+                }
+            } catch (err) { console.error(`Poll check failed for job ${jobId}:`, err); }
+        }
+
+        // ── Sync actions ───────────────────────────────────────────────────────────
+
+        const actionMeta = {
+            Insert: { label: 'Insert', icon: 'fa-circle-check text-green-500', loadingLabel: 'Inserting...' },
+            Replace: { label: 'Replace', icon: 'fa-circle-check text-amber-500', loadingLabel: 'Replacing...' },
+            Remove: { label: 'Remove', icon: 'fa-circle-check text-red-500', loadingLabel: 'Removing...' }
+        };
+
+        async function startSync(actionType) {
+            if (!state.selectedDeviceIds.size) return showModal('Wait', 'Select at least one device.', 'fa-hand text-amber-500');
+            if (!state.selectedCardIds.size) return showModal('Wait', 'Select at least one card.', 'fa-hand text-amber-500');
+            if (actionType === 'Replace' && !confirm(`Replace will CLEAR ALL cards from the ${state.selectedDeviceIds.size} selected device(s), then insert the ${state.selectedCardIds.size} selected card(s).\n\nContinue?`)) return;
+            if (actionType === 'Remove' && !confirm(`Remove will delete the ${state.selectedCardIds.size} selected card(s) from the ${state.selectedDeviceIds.size} selected device(s).\n\nContinue?`)) return;
+
+            const meta = actionMeta[actionType];
+            const btn = document.getElementById(`btn${actionType}`);
+            const orig = btn.innerHTML;
+            const allBtnIds = ['btnInsert', 'btnReplace', 'btnRemove', 'btnGetCardList'];
+            allBtnIds.forEach(id => { document.getElementById(id).disabled = true; });
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${meta.loadingLabel}`;
+
+            try {
+                const r = await fetch('/api/CardManagement/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ DeviceIds: [...state.selectedDeviceIds], CardIds: [...state.selectedCardIds], UserId: state.currentUser.id, ActionType: actionType })
+                });
+                const data = await r.json();
+                if (r.ok) { updateLocalDeviceCardMap(actionType); showModal('Success', data.message || `${meta.label} completed.`, meta.icon); }
+                else showModal('Error', data.message || 'An error occurred.', 'fa-circle-exclamation text-red-500');
+            } catch (err) {
+                showModal('Error', err.message, 'fa-circle-exclamation text-red-500');
+            } finally {
+                btn.innerHTML = orig;
+                allBtnIds.forEach(id => { document.getElementById(id).disabled = id === 'btnGetCardList' ? state.selectedDeviceIds.size === 0 : false; });
+            }
+        }
+
+        function updateLocalDeviceCardMap(actionType) {
+            state.selectedDeviceIds.forEach(deviceId => {
+                if (!state.deviceCardMap[deviceId]) state.deviceCardMap[deviceId] = new Set();
+                const map = state.deviceCardMap[deviceId];
+                if (actionType === 'Insert') state.selectedCardIds.forEach(id => map.add(id));
+                else if (actionType === 'Replace') state.deviceCardMap[deviceId] = new Set(state.selectedCardIds);
+                else if (actionType === 'Remove') state.selectedCardIds.forEach(id => map.delete(id));
+            });
+        }
+
+        // ── Helpers ────────────────────────────────────────────────────────────────
+
+        function populateAdminDropdowns() {
+            const rSel = document.getElementById('newCompReseller');
+            const cSel = document.getElementById('newUserCompany');
+            if (rSel) { rSel.innerHTML = '<option value="">Select Reseller</option>'; state.resellers.forEach(r => rSel.innerHTML += `<option value="${r.id}">${r.name}</option>`); }
+            if (cSel) { cSel.innerHTML = '<option value="">Select Company (Optional)</option>'; state.companies.forEach(c => cSel.innerHTML += `<option value="${c.id}">${c.name}</option>`); }
+        }
+
+        function initAdminOrUser() {
+            const isAdmin = state.currentUser.role === 'Admin';
+            document.getElementById('adminControls').classList.toggle('hidden', !isAdmin);
+            document.getElementById('userCompanyDisplay').classList.toggle('hidden', isAdmin);
+            if (isAdmin) {
+                const sel = document.getElementById('companySelector');
+                sel.innerHTML = '';
+                state.companies.forEach(c => sel.innerHTML += `<option value="${c.id}" ${c.id === state.activeCompanyId ? 'selected' : ''}>${c.name}</option>`);
+            } else {
+                document.getElementById('companyNameLabel').innerText = state.currentUser.companyName ?? 'Unknown';
+            }
+        }
+
+        async function switchCompany(cid) {
+            state.activeCompanyId = parseInt(cid);
+            state.selectedDeviceIds.clear(); state.selectedCardIds.clear(); state.deviceCardMap = {};
+            Object.values(state.pollTimers).forEach(t => clearInterval(t)); state.pollTimers = {};
+            showModal('Loading', `Connecting to ${state.companies.find(c => c.id === state.activeCompanyId)?.name}...`, 'fa-spinner fa-spin text-blue-500');
+            await loadCompanyData(state.activeCompanyId);
+            closeModal(); updateGetCardListButton();
+        }
+
+        function populateDropdowns() {
+            const dg = [...new Set(state.devices.map(d => d.groupName || 'Unassigned'))].sort();
+            const df = document.getElementById('deviceGroupFilter');
+            df.innerHTML = '<option value="All">All Groups</option>';
+            dg.forEach(g => df.innerHTML += `<option value="${g}">${g}</option>`);
+            const cg = [...new Set(state.cards.map(c => c.groupName || 'Unassigned'))].sort();
+            const cf = document.getElementById('cardGroupFilter');
+            cf.innerHTML = '<option value="All">All Groups</option>';
+            cg.forEach(g => cf.innerHTML += `<option value="${g}">${g}</option>`);
+        }
+
+        async function openAdminPanel() {
+            await fetchAllUsers();
+            document.getElementById('adminModal').classList.remove('hidden');
+            showAdminTab('create');
+        }
+        function closeAdminPanel() { document.getElementById('adminModal').classList.add('hidden'); }
+        function closeModal() { document.getElementById('notificationModal').classList.add('hidden'); }
+
+        function showModal(title, msg, icon) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = msg;
+            document.getElementById('modalIcon').className = `fa-solid ${icon}`;
+            document.getElementById('notificationModal').classList.remove('hidden');
+        }
+
+        async function saveReseller() {
+            const p = { Name: document.getElementById('newResellerName').value, Username: document.getElementById('newResellerUsername').value, Password: document.getElementById('newResellerPassword').value, Companies: [] };
+            const r = await fetch('/api/Admin/resellers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
+            if (r.ok) { await fetchResellers(); populateAdminDropdowns(); showModal('Done', 'Reseller created.', 'fa-check text-green-500'); }
+        }
+
+        async function saveCompany() {
+            const rId = document.getElementById('newCompReseller').value;
+            const p = { Name: document.getElementById('newCompName').value, Mobility_User1: document.getElementById('newCompMobUser').value, Mobility_Pass: document.getElementById('newCompMobPass').value, ResellerId: parseInt(rId), Units: [], Cards: [] };
+            const r = await fetch('/api/Admin/companies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
+            if (r.ok) {
+                await fetchCompanies(); initAdminOrUser(); populateAdminDropdowns();
+                showModal('Done', 'Company created.', 'fa-check text-green-500');
+            }
+        }
+
+        async function saveUser() {
+            const cId = document.getElementById('newUserCompany').value;
+            const p = { Username: document.getElementById('newUserUsername').value, PasswordHash: document.getElementById('newUserPassword').value, Role: document.getElementById('newUserRole').value, CompanyId: cId ? parseInt(cId) : null };
+            const r = await fetch('/api/Admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
+            if (r.ok) { showModal('Done', 'User created.', 'fa-check text-green-500'); }
+        }
+    </script>
+</body>
+</html>
