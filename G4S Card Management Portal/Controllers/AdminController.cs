@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using CardManagement.Data;
 using CardManagement.Models;
+using System.Collections.Generic;
 
 namespace CardManagement.Controllers
 {
@@ -19,7 +20,7 @@ namespace CardManagement.Controllers
 
         [HttpGet("resellers")]
         public async Task<IActionResult> GetResellers() =>
-            Ok(await _context.Resellers.Select(r => new { r.Id, r.Name }).ToListAsync());
+            Ok(await _context.Resellers.Select(r => new { r.Id, r.Name, r.Username }).ToListAsync());
 
         [HttpPost("resellers")]
         public async Task<IActionResult> AddReseller([FromBody] Reseller r)
@@ -27,6 +28,26 @@ namespace CardManagement.Controllers
             _context.Resellers.Add(r);
             await _context.SaveChangesAsync();
             return Ok();
+        }
+
+        [HttpDelete("resellers/{id}")]
+        public async Task<IActionResult> DeleteReseller(int id)
+        {
+            var reseller = await _context.Resellers.FindAsync(id);
+            if (reseller == null) return NotFound("Reseller not found.");
+
+            // Get all companies belonging to this reseller
+            var companies = await _context.Companies.Where(c => c.ResellerId == id).ToListAsync();
+
+            foreach (var company in companies)
+            {
+                await InternalDeleteCompany(company.Id);
+            }
+
+            _context.Resellers.Remove(reseller);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"Reseller '{reseller.Name}' and all associated data deleted." });
         }
 
         // ── Companies ─────────────────────────────────────────────────────────────
@@ -49,9 +70,20 @@ namespace CardManagement.Controllers
             var company = await _context.Companies.FindAsync(id);
             if (company == null) return NotFound("Company not found.");
 
-            // Cascade delete: DeviceCards → Devices → Units → Cards → Users
+            await InternalDeleteCompany(id);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = $"Company '{company.Name}' and all related data deleted." });
+        }
+
+        /// <summary>
+        /// Shared logic to clean up all entities related to a company.
+        /// Does NOT call SaveChangesAsync.
+        /// </summary>
+        private async Task InternalDeleteCompany(int companyId)
+        {
             var unitIds = await _context.Units
-                .Where(u => u.CompanyId == id)
+                .Where(u => u.CompanyId == companyId)
                 .Select(u => u.Id)
                 .ToListAsync();
 
@@ -86,16 +118,14 @@ namespace CardManagement.Controllers
                 _context.Units.RemoveRange(units);
             }
 
-            var cards = await _context.Cards.Where(c => c.CompanyId == id).ToListAsync();
+            var cards = await _context.Cards.Where(c => c.CompanyId == companyId).ToListAsync();
             _context.Cards.RemoveRange(cards);
 
-            var users = await _context.Users.Where(u => u.CompanyId == id).ToListAsync();
+            var users = await _context.Users.Where(u => u.CompanyId == companyId).ToListAsync();
             _context.Users.RemoveRange(users);
 
-            _context.Companies.Remove(company);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = $"Company '{company.Name}' and all related data deleted." });
+            var company = await _context.Companies.FindAsync(companyId);
+            if (company != null) _context.Companies.Remove(company);
         }
 
         // ── Users ─────────────────────────────────────────────────────────────────
@@ -126,7 +156,6 @@ namespace CardManagement.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound("User not found.");
 
-            // Prevent deleting the last admin
             if (user.Role == "Admin")
             {
                 var adminCount = await _context.Users.CountAsync(u => u.Role == "Admin");

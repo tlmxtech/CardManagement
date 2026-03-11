@@ -6,13 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+// 1. Register the DbContextFactory first. 
+// By default, this registers IDbContextFactory AND DbContextOptions as Singletons.
+// This allows the factory to be used safely in background threads (Task.Run).
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Also register the factory — used by background tasks that need their own DbContext scope
-builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")),
-    ServiceLifetime.Scoped);
+// 2. Register the Scoped AppDbContext for use in Controllers and Scoped Services.
+// We use the factory to create the context, ensuring it uses the same configuration.
+builder.Services.AddScoped(sp =>
+    sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -33,7 +36,6 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
 
-    // Seed admin/admin if no users exist yet
     if (!db.Users.Any())
     {
         db.Users.Add(new User

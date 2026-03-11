@@ -30,7 +30,6 @@ namespace CardManagement.Controllers
         [HttpGet("devices")]
         public async Task<IActionResult> GetDevices([FromQuery] int companyId)
         {
-            // Include the latest PollJob status for each device so the UI can show badges
             var devices = await _context.Devices
                 .Include(d => d.Unit)
                 .Include(d => d.PollJobs)
@@ -41,7 +40,6 @@ namespace CardManagement.Controllers
                     IMEI = d.Unit.IMEI,
                     d.TrackerTypeName,
                     GroupName = d.Unit.GroupName,
-                    // Surface the most recent poll job status (null = never polled)
                     PollStatus = d.PollJobs != null && d.PollJobs.Any()
                         ? d.PollJobs.OrderByDescending(p => p.RequestedAt).First().Status
                         : null,
@@ -70,10 +68,6 @@ namespace CardManagement.Controllers
             return Ok(cards);
         }
 
-        /// <summary>
-        /// Returns the Card IDs currently tracked locally for a device.
-        /// Called by the frontend when the user selects a device to pre-check its cards.
-        /// </summary>
         [HttpGet("device-cards/{deviceId}")]
         public async Task<IActionResult> GetCardsForDevice(int deviceId)
         {
@@ -84,10 +78,6 @@ namespace CardManagement.Controllers
             return Ok(cardIds);
         }
 
-        /// <summary>
-        /// Sends the "Ask" hex command to the device and creates a PollJob.
-        /// The frontend should then call poll-status/{jobId} every ~2 minutes.
-        /// </summary>
         [HttpPost("request-card-list/{deviceId}")]
         public async Task<IActionResult> RequestCardList(int deviceId)
         {
@@ -102,11 +92,6 @@ namespace CardManagement.Controllers
             }
         }
 
-        /// <summary>
-        /// Checks whether the device has responded with a fresh card list since the Ask was sent.
-        /// If yes, overwrites DeviceCards and returns status = "Completed".
-        /// Frontend polls this endpoint every 2 minutes while status is "Pending".
-        /// </summary>
         [HttpGet("poll-status/{jobId}")]
         public async Task<IActionResult> PollStatus(int jobId)
         {
@@ -134,6 +119,7 @@ namespace CardManagement.Controllers
             public List<int> CardIds { get; set; }
             public int UserId { get; set; }
             public string ActionType { get; set; } = "Insert";
+            public bool ForceSync { get; set; } = false; // Added for bypassing local cache
         }
 
         [HttpPost("sync")]
@@ -153,7 +139,7 @@ namespace CardManagement.Controllers
             {
                 try
                 {
-                    await _syncService.SyncCardsToDeviceAsync(deviceId, request.CardIds, request.UserId, request.ActionType);
+                    await _syncService.SyncCardsToDeviceAsync(deviceId, request.CardIds, request.UserId, request.ActionType, request.ForceSync);
                     results.Add(new { deviceId, status = "Sent" });
                 }
                 catch (System.Exception ex)

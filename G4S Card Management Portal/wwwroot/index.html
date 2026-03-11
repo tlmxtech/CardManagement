@@ -68,32 +68,35 @@
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-gray-700">Sync Manager</h1>
             <div class="flex items-center gap-2">
+                <!-- Force Sync Checkbox -->
+                <div class="flex items-center bg-white border border-gray-200 px-3 py-2 rounded shadow-sm mr-2 group cursor-pointer hover:border-blue-300 transition"
+                     onclick="document.getElementById('chkForceSync').click()">
+                    <input type="checkbox" id="chkForceSync" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer" onclick="event.stopPropagation()">
+                    <label for="chkForceSync" class="ml-2 text-xs font-bold text-gray-500 group-hover:text-blue-600 cursor-pointer uppercase tracking-tighter">Force Send All</label>
+                </div>
+
                 <button id="btnGetCardList" onclick="requestCardList()" disabled
-                        class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+                        class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95 disabled:opacity-40"
                         title="Request current card list from selected device(s)">
                     <i class="fa-solid fa-list-check mr-2"></i> Get Card List
                 </button>
                 <div class="w-px h-8 bg-gray-300 mx-1"></div>
                 <button id="btnInsert" onclick="startSync('Insert')"
-                        class="bg-success hover:bg-green-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95"
-                        title="Add selected cards to devices (skips cards already present)">
+                        class="bg-success hover:bg-green-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95">
                     <i class="fa-solid fa-plus mr-2"></i> Insert
                 </button>
                 <button id="btnReplace" onclick="startSync('Replace')"
-                        class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95"
-                        title="Clear all cards on devices, then insert selected cards">
+                        class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95">
                     <i class="fa-solid fa-arrow-right-arrow-left mr-2"></i> Replace
                 </button>
                 <button id="btnRemove" onclick="startSync('Remove')"
-                        class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95"
-                        title="Remove selected cards from devices">
+                        class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-5 rounded shadow-lg flex items-center transition transform active:scale-95">
                     <i class="fa-solid fa-trash mr-2"></i> Remove
                 </button>
             </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Devices Panel -->
             <div class="bg-white rounded-lg shadow-md flex flex-col h-[78vh]">
                 <div class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg flex flex-wrap justify-between items-center gap-2">
                     <div class="flex items-center">
@@ -117,7 +120,6 @@
                 <div class="flex-1 overflow-y-auto" id="deviceListContainer"></div>
             </div>
 
-            <!-- Cards Panel -->
             <div class="bg-white rounded-lg shadow-md flex flex-col h-[78vh]">
                 <div class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg flex flex-wrap justify-between items-center gap-2">
                     <div class="flex items-center">
@@ -151,13 +153,11 @@
                 <button onclick="closeAdminPanel()" class="text-gray-400 hover:text-red-500 transition text-2xl">&times;</button>
             </div>
 
-            <!-- Tabs -->
             <div class="flex gap-2 mb-6 border-b">
                 <button onclick="showAdminTab('create')" id="tabCreate" class="px-4 py-2 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-700">Create</button>
                 <button onclick="showAdminTab('manage')" id="tabManage" class="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700">Manage</button>
             </div>
 
-            <!-- Create Tab -->
             <div id="panelCreate">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
@@ -195,15 +195,16 @@
                 </div>
             </div>
 
-            <!-- Manage Tab -->
             <div id="panelManage" class="hidden">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Companies list -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div>
+                        <h3 class="font-bold mb-3 text-gray-700 text-sm uppercase tracking-wider">Resellers</h3>
+                        <div id="resellersList" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
+                    </div>
                     <div>
                         <h3 class="font-bold mb-3 text-gray-700 text-sm uppercase tracking-wider">Companies</h3>
                         <div id="companiesList" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
                     </div>
-                    <!-- Users list -->
                     <div>
                         <h3 class="font-bold mb-3 text-gray-700 text-sm uppercase tracking-wider">Users</h3>
                         <div id="usersList" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
@@ -224,12 +225,11 @@
     </div>
 
     <script>
-        // ── Auth guard ─────────────────────────────────────────────────────────────
         const storedUser = sessionStorage.getItem('currentUser');
         if (!storedUser) { window.location.replace('/login.html'); }
 
         let state = {
-            currentUser: storedUser ? JSON.parse(storedUser) : null,
+            currentUser: JSON.parse(storedUser),
             activeCompanyId: null,
             resellers: [],
             companies: [],
@@ -246,16 +246,11 @@
 
         document.addEventListener('DOMContentLoaded', initApp);
 
-        function logout() {
-            sessionStorage.removeItem('currentUser');
-            window.location.replace('/login.html');
-        }
+        function logout() { sessionStorage.removeItem('currentUser'); window.location.replace('/login.html'); }
 
         async function initApp() {
             try {
-                // Show username in navbar
                 document.getElementById('navUsername').textContent = state.currentUser.username;
-
                 await fetchCompanies();
                 await fetchResellers();
                 initAdminOrUser();
@@ -268,13 +263,10 @@
                         await loadCompanyData(state.activeCompanyId);
                     }
                 } else {
-                    // Company user: lock to their company
                     state.activeCompanyId = state.currentUser.companyId;
                     if (state.activeCompanyId) await loadCompanyData(state.activeCompanyId);
                 }
-
-                renderDevices();
-                renderCards();
+                renderDevices(); renderCards();
             } catch (err) { console.error("Init failed:", err); }
         }
 
@@ -285,9 +277,7 @@
         async function fetchDevices(companyId) {
             const r = await fetch(`/api/CardManagement/devices?companyId=${companyId}`);
             state.devices = r.ok ? await r.json() : [];
-            state.devices.forEach(d => {
-                if (d.pollStatus === 'Pending' && d.pollJobId) startPollingTimer(d.id, d.pollJobId);
-            });
+            state.devices.forEach(d => { if (d.pollStatus === 'Pending' && d.pollJobId) startPollingTimer(d.id, d.pollJobId); });
         }
 
         async function fetchCards(companyId) {
@@ -300,8 +290,6 @@
             populateDropdowns(); renderDevices(); renderCards();
         }
 
-        // ── Device card map ────────────────────────────────────────────────────────
-
         async function loadDeviceCards(deviceId) {
             if (state.deviceCardMap[deviceId] !== undefined) return;
             const r = await fetch(`/api/CardManagement/device-cards/${deviceId}`);
@@ -313,11 +301,8 @@
                 const deviceId = [...state.selectedDeviceIds][0];
                 state.selectedCardIds = new Set(state.deviceCardMap[deviceId] ?? []);
             }
-            renderCards();
-            updateCardCount();
+            renderCards(); updateCardCount();
         }
-
-        // ── Poll status badge ──────────────────────────────────────────────────────
 
         function pollStatusBadge(status) {
             if (!status) return '';
@@ -327,12 +312,8 @@
                 Failed: { cls: 'bg-red-100 text-red-700', icon: 'fa-circle-xmark', label: 'Failed' }
             };
             const c = cfg[status] ?? { cls: 'bg-gray-100 text-gray-500', icon: 'fa-circle', label: status };
-            return `<span class="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded ${c.cls}">
-                            <i class="fa-solid ${c.icon} mr-0.5"></i>${c.label}
-                        </span>`;
+            return `<span class="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded ${c.cls}"><i class="fa-solid ${c.icon} mr-0.5"></i>${c.label}</span>`;
         }
-
-        // ── Rendering ─────────────────────────────────────────────────────────────
 
         function renderDevices() {
             const container = document.getElementById('deviceListContainer');
@@ -340,39 +321,26 @@
             const group = document.getElementById('deviceGroupFilter').value;
             const filtered = state.devices.filter(d => {
                 const grp = d.groupName || 'Unassigned';
-                return ((d.name || '').toLowerCase().includes(search) || (d.imei && d.imei.includes(search)))
-                    && (group === 'All' || grp === group);
+                return ((d.name || '').toLowerCase().includes(search) || (d.imei && d.imei.includes(search))) && (group === 'All' || grp === group);
             });
-            if (!filtered.length) {
-                container.innerHTML = '<div class="p-8 text-center text-gray-400 italic text-sm">No devices matching criteria.</div>';
-                updateDeviceCount(); return;
-            }
             container.innerHTML = filtered.map(d => {
                 const checked = state.selectedDeviceIds.has(d.id) ? 'checked' : '';
                 const type = (d.trackerTypeName || '').toLowerCase();
                 const icon = type.includes('jointech') ? 'fa-satellite-dish text-blue-500' : 'fa-location-dot text-green-500';
                 return `
-                    <div class="flex items-center p-3.5 border-b border-gray-100 hover:bg-blue-50 transition cursor-pointer group" onclick="document.getElementById('dev_${d.id}').click()">
-                        <input type="checkbox" id="dev_${d.id}" value="${d.id}" ${checked}
-                            onchange="toggleDevice(${d.id}, event)"
-                            class="mr-4 h-5 w-5 text-primary rounded border-gray-300 transition"
-                            onclick="event.stopPropagation()">
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-1.5 flex-wrap min-w-0">
-                                    <p class="text-sm font-bold text-gray-800 group-hover:text-primary transition truncate">${d.name || 'Unnamed Vehicle'}</p>
-                                    ${pollStatusBadge(d.pollStatus)}
+                        <div class="flex items-center p-3.5 border-b border-gray-100 hover:bg-blue-50 transition cursor-pointer group" onclick="document.getElementById('dev_${d.id}').click()">
+                            <input type="checkbox" id="dev_${d.id}" value="${d.id}" ${checked} onchange="toggleDevice(${d.id}, event)" class="mr-4 h-5 w-5 text-primary rounded border-gray-300" onclick="event.stopPropagation()">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-1.5 flex-wrap min-w-0">
+                                        <p class="text-sm font-bold text-gray-800 group-hover:text-primary transition truncate">${d.name || 'Unnamed'}</p>
+                                        ${pollStatusBadge(d.pollStatus)}
+                                    </div>
+                                    <span class="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">${d.groupName || 'Unassigned'}</span>
                                 </div>
-                                <span class="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">${d.groupName || 'Unassigned'}</span>
+                                <p class="text-[11px] text-gray-500 mt-1 uppercase font-mono"><span class="text-secondary font-bold">${d.trackerTypeName}</span> | IMEI: ${d.imei}</p>
                             </div>
-                            <p class="text-[11px] text-gray-500 mt-1">
-                                <i class="fa-solid ${icon} mr-1 opacity-70"></i>
-                                <span class="text-secondary font-semibold uppercase">${d.trackerTypeName || 'Unknown'}</span>
-                                <span class="mx-1.5 text-gray-300">|</span>
-                                <span class="font-mono">IMEI: ${d.imei || 'N/A'}</span>
-                            </p>
-                        </div>
-                    </div>`;
+                        </div>`;
             }).join('');
             updateDeviceCount();
         }
@@ -383,146 +351,95 @@
             const group = document.getElementById('cardGroupFilter').value;
             const filtered = state.cards.filter(c => {
                 const grp = c.groupName || 'Unassigned';
-                return ((c.displayName || '').toLowerCase().includes(search) || (c.driverID || '').toLowerCase().includes(search))
-                    && (group === 'All' || grp === group);
+                return ((c.displayName || '').toLowerCase().includes(search) || (c.driverID || '').toLowerCase().includes(search)) && (group === 'All' || grp === group);
             });
-            if (!filtered.length) {
-                container.innerHTML = '<div class="p-8 text-center text-gray-400 italic text-sm">No cards matching criteria.</div>';
-                updateCardCount(); return;
-            }
             container.innerHTML = filtered.map(c => {
                 const checked = state.selectedCardIds.has(c.id) ? 'checked' : '';
                 return `
-                    <div class="flex items-center p-3.5 border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer group" onclick="document.getElementById('card_${c.id}').click()">
-                        <input type="checkbox" id="card_${c.id}" value="${c.id}" ${checked}
-                            onchange="toggleCard(${c.id}, event)"
-                            class="mr-4 h-5 w-5 text-secondary rounded border-gray-300 transition"
-                            onclick="event.stopPropagation()">
-                        <div class="flex-1">
-                            <div class="flex items-center justify-between">
-                                <p class="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition">${c.displayName || 'Unnamed Driver'}</p>
-                                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">${c.groupName || 'Unassigned'}</span>
+                        <div class="flex items-center p-3.5 border-b border-gray-100 hover:bg-indigo-50 transition cursor-pointer group" onclick="document.getElementById('card_${c.id}').click()">
+                            <input type="checkbox" id="card_${c.id}" value="${c.id}" ${checked} onchange="toggleCard(${c.id}, event)" class="mr-4 h-5 w-5 text-secondary rounded border-gray-300" onclick="event.stopPropagation()">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <p class="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition">${c.displayName || 'Unnamed'}</p>
+                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 uppercase">${c.groupName || 'Unassigned'}</span>
+                                </div>
+                                <p class="text-[11px] text-gray-500 mt-1 font-mono uppercase"><span class="bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded">${c.tag_Type}</span> ID: ${c.driverID}</p>
                             </div>
-                            <p class="text-[11px] text-gray-500 mt-1">
-                                <span class="bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md font-bold text-[9px] mr-2 uppercase">${c.tag_Type || 'Unknown Type'}</span>
-                                <span class="font-mono">ID: ${c.driverID}</span>
-                                <span class="mx-1.5 text-gray-300">|</span>
-                                <span class="font-mono opacity-80">Tag: ${c.tag_ID || 'None'}</span>
-                            </p>
-                        </div>
-                    </div>`;
+                        </div>`;
             }).join('');
             updateCardCount();
         }
 
-        // ── Admin panel ────────────────────────────────────────────────────────────
-
         function showAdminTab(tab) {
             document.getElementById('panelCreate').classList.toggle('hidden', tab !== 'create');
             document.getElementById('panelManage').classList.toggle('hidden', tab !== 'manage');
-            document.getElementById('tabCreate').className = `px-4 py-2 text-sm font-semibold border-b-2 ${tab === 'create' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
-            document.getElementById('tabManage').className = `px-4 py-2 text-sm font-semibold border-b-2 ${tab === 'manage' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`;
+            document.getElementById('tabCreate').className = `px-4 py-2 text-sm font-semibold border-b-2 ${tab === 'create' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500'}`;
+            document.getElementById('tabManage').className = `px-4 py-2 text-sm font-semibold border-b-2 ${tab === 'manage' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-gray-500'}`;
             if (tab === 'manage') renderManageLists();
         }
 
         function renderManageLists() {
-            const compDiv = document.getElementById('companiesList');
-            compDiv.innerHTML = state.companies.length ? state.companies.map(c => `
+            const resDiv = document.getElementById('resellersList');
+            resDiv.innerHTML = state.resellers.map(r => `
                     <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-800">${c.name}</p>
-                            <p class="text-[11px] text-gray-500">ID: ${c.id}</p>
-                        </div>
-                        <button onclick="deleteCompany(${c.id}, '${c.name.replace(/'/g, "\\'")}')"
-                            class="text-red-400 hover:text-red-600 transition p-1.5 rounded hover:bg-red-50" title="Delete company">
-                            <i class="fa-solid fa-trash text-sm"></i>
-                        </button>
-                    </div>`).join('') : '<p class="text-sm text-gray-400 italic">No companies.</p>';
+                        <div><p class="text-sm font-semibold text-gray-800">${r.name}</p><p class="text-[11px] text-gray-500">User: ${r.username}</p></div>
+                        <button onclick="deleteReseller(${r.id}, '${r.name}')" class="text-red-400 hover:text-red-600 transition p-1.5 hover:bg-red-50"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </div>`).join('');
+
+            const compDiv = document.getElementById('companiesList');
+            compDiv.innerHTML = state.companies.map(c => `
+                    <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
+                        <p class="text-sm font-semibold text-gray-800">${c.name}</p>
+                        <button onclick="deleteCompany(${c.id}, '${c.name}')" class="text-red-400 hover:text-red-600 transition p-1.5 hover:bg-red-50"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </div>`).join('');
 
             const userDiv = document.getElementById('usersList');
-            userDiv.innerHTML = state.allUsers.length ? state.allUsers.map(u => `
+            userDiv.innerHTML = state.allUsers.map(u => `
                     <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-800">${u.username}
-                                <span class="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded ${u.role === 'Admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'} uppercase">${u.role}</span>
-                            </p>
-                            <p class="text-[11px] text-gray-500">${u.companyName ? `Company: ${u.companyName}` : 'No company'}</p>
-                        </div>
-                        <button onclick="deleteUser(${u.id}, '${u.username.replace(/'/g, "\\'")}')"
-                            class="text-red-400 hover:text-red-600 transition p-1.5 rounded hover:bg-red-50" title="Delete user"
-                            ${u.id === state.currentUser.id ? 'disabled title="Cannot delete yourself"' : ''}>
-                            <i class="fa-solid fa-trash text-sm"></i>
-                        </button>
-                    </div>`).join('') : '<p class="text-sm text-gray-400 italic">No users.</p>';
+                        <div><p class="text-sm font-semibold text-gray-800">${u.username} <span class="text-[9px] font-bold px-1 py-0.5 rounded bg-gray-200 uppercase">${u.role}</span></p><p class="text-[11px] text-gray-500">${u.companyName || 'Global'}</p></div>
+                        <button onclick="deleteUser(${u.id}, '${u.username}')" ${u.id === state.currentUser.id ? 'disabled' : ''} class="text-red-400 hover:text-red-600 transition p-1.5 hover:bg-red-50"><i class="fa-solid fa-trash text-sm"></i></button>
+                    </div>`).join('');
+        }
+
+        async function deleteReseller(id, name) {
+            if (!confirm(`Delete reseller "${name}" and ALL its data?`)) return;
+            const r = await fetch(`/api/Admin/resellers/${id}`, { method: 'DELETE' });
+            if (r.ok) { await fetchResellers(); await fetchCompanies(); renderManageLists(); initAdminOrUser(); populateAdminDropdowns(); }
         }
 
         async function deleteCompany(id, name) {
-            if (!confirm(`Delete company "${name}" and ALL its devices, cards and users?\n\nThis cannot be undone.`)) return;
+            if (!confirm(`Delete company "${name}" and ALL its data?`)) return;
             const r = await fetch(`/api/Admin/companies/${id}`, { method: 'DELETE' });
-            if (r.ok) {
-                await fetchCompanies();
-                initAdminOrUser();
-                populateAdminDropdowns();
-                renderManageLists();
-                if (state.activeCompanyId === id) {
-                    state.activeCompanyId = state.companies[0]?.id ?? null;
-                    if (state.activeCompanyId) await loadCompanyData(state.activeCompanyId);
-                }
-                showModal('Done', `Company "${name}" deleted.`, 'fa-check text-green-500');
-            } else {
-                showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
-            }
+            if (r.ok) { await fetchCompanies(); renderManageLists(); initAdminOrUser(); populateAdminDropdowns(); }
         }
 
-        async function deleteUser(id, username) {
-            if (!confirm(`Delete user "${username}"?`)) return;
+        async function deleteUser(id, name) {
+            if (!confirm(`Delete user "${name}"?`)) return;
             const r = await fetch(`/api/Admin/users/${id}`, { method: 'DELETE' });
-            if (r.ok) {
-                await fetchAllUsers();
-                renderManageLists();
-                showModal('Done', `User "${username}" deleted.`, 'fa-check text-green-500');
-            } else {
-                showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
-            }
+            if (r.ok) { await fetchAllUsers(); renderManageLists(); }
         }
-
-        // ── Event handlers ─────────────────────────────────────────────────────────
 
         async function toggleDevice(id, e) {
-            if (e.target.checked) {
-                state.selectedDeviceIds.add(id);
-                await loadDeviceCards(id);
-                applyCardPreSelection();
-            } else {
-                state.selectedDeviceIds.delete(id);
-                if (state.selectedDeviceIds.size === 0) { state.selectedCardIds.clear(); renderCards(); updateCardCount(); }
-                else applyCardPreSelection();
-            }
-            updateDeviceCount();
-            updateGetCardListButton();
+            if (e.target.checked) { state.selectedDeviceIds.add(id); await loadDeviceCards(id); applyCardPreSelection(); }
+            else { state.selectedDeviceIds.delete(id); if (state.selectedDeviceIds.size === 0) state.selectedCardIds.clear(); applyCardPreSelection(); }
+            updateDeviceCount(); updateGetCardListButton();
         }
 
-        function toggleCard(id, e) {
-            if (e.target.checked) state.selectedCardIds.add(id); else state.selectedCardIds.delete(id);
-            updateCardCount();
-        }
+        function toggleCard(id, e) { if (e.target.checked) state.selectedCardIds.add(id); else state.selectedCardIds.delete(id); updateCardCount(); }
 
         function toggleAllDevices(el) {
             document.querySelectorAll('#deviceListContainer input[type="checkbox"]').forEach(cb => {
-                cb.checked = el.checked;
-                const id = parseInt(cb.value);
+                cb.checked = el.checked; const id = parseInt(cb.value);
                 if (el.checked) state.selectedDeviceIds.add(id); else state.selectedDeviceIds.delete(id);
             });
             updateDeviceCount(); updateGetCardListButton();
-            if (el.checked) {
-                Promise.all([...state.selectedDeviceIds].map(id => loadDeviceCards(id))).then(() => applyCardPreSelection());
-            } else { state.selectedCardIds.clear(); renderCards(); updateCardCount(); }
+            if (el.checked) Promise.all([...state.selectedDeviceIds].map(id => loadDeviceCards(id))).then(() => applyCardPreSelection());
+            else { state.selectedCardIds.clear(); renderCards(); updateCardCount(); }
         }
 
         function toggleAllCards(el) {
             document.querySelectorAll('#cardListContainer input[type="checkbox"]').forEach(cb => {
-                cb.checked = el.checked;
-                const id = parseInt(cb.value);
+                cb.checked = el.checked; const id = parseInt(cb.value);
                 if (el.checked) state.selectedCardIds.add(id); else state.selectedCardIds.delete(id);
             });
             updateCardCount();
@@ -532,21 +449,13 @@
         function updateCardCount() { document.getElementById('selectedCardCount').innerText = `${state.selectedCardIds.size} Selected`; }
         function updateGetCardListButton() { document.getElementById('btnGetCardList').disabled = state.selectedDeviceIds.size === 0; }
 
-        // ── Pull from API ──────────────────────────────────────────────────────────
-
         async function pullDevices() {
             if (!state.activeCompanyId) return;
             const btn = document.getElementById('btnSyncDevices');
             btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Working...';
             try {
                 const r = await fetch(`/api/CardManagement/pull-devices?companyId=${state.activeCompanyId}`, { method: 'POST' });
-                if (r.ok) {
-                    state.deviceCardMap = {}; // invalidate cache — background fetch may have updated data
-                    await loadCompanyData(state.activeCompanyId);
-                    showModal('Done', 'Devices synced. Card lists are being fetched in the background.', 'fa-circle-check text-green-500');
-                } else {
-                    showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
-                }
+                if (r.ok) { state.deviceCardMap = {}; await loadCompanyData(state.activeCompanyId); showModal('Done', 'Devices synced and card lists fetching in background.', 'fa-circle-check text-green-500'); }
             } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down mr-1"></i> Sync from API'; }
         }
 
@@ -557,113 +466,61 @@
             try {
                 const r = await fetch(`/api/CardManagement/pull-cards?companyId=${state.activeCompanyId}`, { method: 'POST' });
                 if (r.ok) await loadCompanyData(state.activeCompanyId);
-                else showModal('Error', await r.text(), 'fa-circle-exclamation text-red-500');
             } finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down mr-1"></i> Sync from API'; }
         }
-
-        // ── Get Card List / polling ────────────────────────────────────────────────
 
         async function requestCardList() {
             if (!state.selectedDeviceIds.size) return;
             const btn = document.getElementById('btnGetCardList');
             btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Sending...';
-            let sentCount = 0;
             for (const deviceId of [...state.selectedDeviceIds]) {
-                try {
-                    const r = await fetch(`/api/CardManagement/request-card-list/${deviceId}`, { method: 'POST' });
-                    if (r.ok) {
-                        const data = await r.json();
-                        updateDevicePollState(deviceId, 'Pending', data.jobId);
-                        startPollingTimer(deviceId, data.jobId);
-                        sentCount++;
-                    }
-                } catch (err) { console.error(`requestCardList failed for device ${deviceId}:`, err); }
+                const r = await fetch(`/api/CardManagement/request-card-list/${deviceId}`, { method: 'POST' });
+                if (r.ok) { const data = await r.json(); startPollingTimer(deviceId, data.jobId); }
             }
             btn.innerHTML = '<i class="fa-solid fa-list-check mr-2"></i> Get Card List';
-            btn.disabled = state.selectedDeviceIds.size === 0;
-            renderDevices();
-            if (sentCount > 0)
-                showModal('Polling Started', `Request sent to ${sentCount} device(s). Card list badge updates automatically when the device responds.`, 'fa-satellite-dish text-blue-500');
-        }
-
-        function updateDevicePollState(deviceId, status, jobId) {
-            const d = state.devices.find(d => d.id === deviceId);
-            if (d) { d.pollStatus = status; d.pollJobId = jobId; }
+            btn.disabled = false; renderDevices();
         }
 
         function startPollingTimer(deviceId, jobId) {
-            if (state.pollTimers[jobId]) return;
-            state.pollTimers[jobId] = setInterval(() => checkPollJob(deviceId, jobId), POLL_INTERVAL_MS);
-        }
-
-        async function checkPollJob(deviceId, jobId) {
-            try {
+            const d = state.devices.find(d => d.id === deviceId);
+            if (d) d.pollStatus = 'Pending';
+            state.pollTimers[jobId] = setInterval(async () => {
                 const r = await fetch(`/api/CardManagement/poll-status/${jobId}`);
-                if (!r.ok) return;
-                const data = await r.json();
-                if (data.status === 'Completed') {
-                    clearInterval(state.pollTimers[jobId]); delete state.pollTimers[jobId];
-                    delete state.deviceCardMap[deviceId];
-                    updateDevicePollState(deviceId, 'Completed', jobId);
-                    renderDevices();
-                    if (state.selectedDeviceIds.has(deviceId)) { await loadDeviceCards(deviceId); applyCardPreSelection(); }
-                } else if (data.status === 'Failed') {
-                    clearInterval(state.pollTimers[jobId]); delete state.pollTimers[jobId];
-                    updateDevicePollState(deviceId, 'Failed', jobId);
-                    renderDevices();
+                if (r.ok) {
+                    const data = await r.json();
+                    if (data.status !== 'Pending') {
+                        clearInterval(state.pollTimers[jobId]); delete state.pollTimers[jobId];
+                        const dev = state.devices.find(d => d.id === deviceId);
+                        if (dev) dev.pollStatus = data.status;
+                        if (data.status === 'Completed') { delete state.deviceCardMap[deviceId]; if (state.selectedDeviceIds.has(deviceId)) { await loadDeviceCards(deviceId); applyCardPreSelection(); } }
+                        renderDevices();
+                    }
                 }
-            } catch (err) { console.error(`Poll check failed for job ${jobId}:`, err); }
+            }, POLL_INTERVAL_MS);
+            renderDevices();
         }
-
-        // ── Sync actions ───────────────────────────────────────────────────────────
-
-        const actionMeta = {
-            Insert: { label: 'Insert', icon: 'fa-circle-check text-green-500', loadingLabel: 'Inserting...' },
-            Replace: { label: 'Replace', icon: 'fa-circle-check text-amber-500', loadingLabel: 'Replacing...' },
-            Remove: { label: 'Remove', icon: 'fa-circle-check text-red-500', loadingLabel: 'Removing...' }
-        };
 
         async function startSync(actionType) {
-            if (!state.selectedDeviceIds.size) return showModal('Wait', 'Select at least one device.', 'fa-hand text-amber-500');
-            if (!state.selectedCardIds.size) return showModal('Wait', 'Select at least one card.', 'fa-hand text-amber-500');
-            if (actionType === 'Replace' && !confirm(`Replace will CLEAR ALL cards from the ${state.selectedDeviceIds.size} selected device(s), then insert the ${state.selectedCardIds.size} selected card(s).\n\nContinue?`)) return;
-            if (actionType === 'Remove' && !confirm(`Remove will delete the ${state.selectedCardIds.size} selected card(s) from the ${state.selectedDeviceIds.size} selected device(s).\n\nContinue?`)) return;
-
-            const meta = actionMeta[actionType];
+            if (!state.selectedDeviceIds.size || !state.selectedCardIds.size) return showModal('Wait', 'Select devices and cards.', 'fa-hand text-amber-500');
+            const force = document.getElementById('chkForceSync').checked;
             const btn = document.getElementById(`btn${actionType}`);
-            const orig = btn.innerHTML;
-            const allBtnIds = ['btnInsert', 'btnReplace', 'btnRemove', 'btnGetCardList'];
-            allBtnIds.forEach(id => { document.getElementById(id).disabled = true; });
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${meta.loadingLabel}`;
-
+            btn.disabled = true;
             try {
                 const r = await fetch('/api/CardManagement/sync', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ DeviceIds: [...state.selectedDeviceIds], CardIds: [...state.selectedCardIds], UserId: state.currentUser.id, ActionType: actionType })
+                    body: JSON.stringify({ DeviceIds: [...state.selectedDeviceIds], CardIds: [...state.selectedCardIds], UserId: state.currentUser.id, ActionType: actionType, ForceSync: force })
                 });
                 const data = await r.json();
-                if (r.ok) { updateLocalDeviceCardMap(actionType); showModal('Success', data.message || `${meta.label} completed.`, meta.icon); }
-                else showModal('Error', data.message || 'An error occurred.', 'fa-circle-exclamation text-red-500');
-            } catch (err) {
-                showModal('Error', err.message, 'fa-circle-exclamation text-red-500');
-            } finally {
-                btn.innerHTML = orig;
-                allBtnIds.forEach(id => { document.getElementById(id).disabled = id === 'btnGetCardList' ? state.selectedDeviceIds.size === 0 : false; });
-            }
+                if (r.ok) {
+                    state.deviceCardMap = {}; // FIX: Re-initialize the map instead of deleting it to avoid crashes
+                    await Promise.all([...state.selectedDeviceIds].map(id => loadDeviceCards(id)));
+                    applyCardPreSelection();
+                    showModal('Success', data.message, 'fa-check text-green-500');
+                }
+                else showModal('Error', data.message, 'fa-circle-exclamation text-red-500');
+            } finally { btn.disabled = false; }
         }
-
-        function updateLocalDeviceCardMap(actionType) {
-            state.selectedDeviceIds.forEach(deviceId => {
-                if (!state.deviceCardMap[deviceId]) state.deviceCardMap[deviceId] = new Set();
-                const map = state.deviceCardMap[deviceId];
-                if (actionType === 'Insert') state.selectedCardIds.forEach(id => map.add(id));
-                else if (actionType === 'Replace') state.deviceCardMap[deviceId] = new Set(state.selectedCardIds);
-                else if (actionType === 'Remove') state.selectedCardIds.forEach(id => map.delete(id));
-            });
-        }
-
-        // ── Helpers ────────────────────────────────────────────────────────────────
 
         function populateAdminDropdowns() {
             const rSel = document.getElementById('newCompReseller');
@@ -678,69 +535,46 @@
             document.getElementById('userCompanyDisplay').classList.toggle('hidden', isAdmin);
             if (isAdmin) {
                 const sel = document.getElementById('companySelector');
-                sel.innerHTML = '';
-                state.companies.forEach(c => sel.innerHTML += `<option value="${c.id}" ${c.id === state.activeCompanyId ? 'selected' : ''}>${c.name}</option>`);
+                sel.innerHTML = state.companies.map(c => `<option value="${c.id}" ${c.id === state.activeCompanyId ? 'selected' : ''}>${c.name}</option>`).join('');
             } else {
-                document.getElementById('companyNameLabel').innerText = state.currentUser.companyName ?? 'Unknown';
+                document.getElementById('companyNameLabel').innerText = state.currentUser.companyName || 'Unknown';
             }
         }
 
         async function switchCompany(cid) {
-            state.activeCompanyId = parseInt(cid);
-            state.selectedDeviceIds.clear(); state.selectedCardIds.clear(); state.deviceCardMap = {};
-            Object.values(state.pollTimers).forEach(t => clearInterval(t)); state.pollTimers = {};
-            showModal('Loading', `Connecting to ${state.companies.find(c => c.id === state.activeCompanyId)?.name}...`, 'fa-spinner fa-spin text-blue-500');
+            state.activeCompanyId = parseInt(cid); state.selectedDeviceIds.clear(); state.selectedCardIds.clear(); state.deviceCardMap = {};
             await loadCompanyData(state.activeCompanyId);
-            closeModal(); updateGetCardListButton();
         }
 
         function populateDropdowns() {
             const dg = [...new Set(state.devices.map(d => d.groupName || 'Unassigned'))].sort();
-            const df = document.getElementById('deviceGroupFilter');
-            df.innerHTML = '<option value="All">All Groups</option>';
-            dg.forEach(g => df.innerHTML += `<option value="${g}">${g}</option>`);
+            document.getElementById('deviceGroupFilter').innerHTML = '<option value="All">All Groups</option>' + dg.map(g => `<option value="${g}">${g}</option>`).join('');
             const cg = [...new Set(state.cards.map(c => c.groupName || 'Unassigned'))].sort();
-            const cf = document.getElementById('cardGroupFilter');
-            cf.innerHTML = '<option value="All">All Groups</option>';
-            cg.forEach(g => cf.innerHTML += `<option value="${g}">${g}</option>`);
+            document.getElementById('cardGroupFilter').innerHTML = '<option value="All">All Groups</option>' + cg.map(g => `<option value="${g}">${g}</option>`).join('');
         }
 
-        async function openAdminPanel() {
-            await fetchAllUsers();
-            document.getElementById('adminModal').classList.remove('hidden');
-            showAdminTab('create');
-        }
+        async function openAdminPanel() { await fetchAllUsers(); document.getElementById('adminModal').classList.remove('hidden'); showAdminTab('create'); }
         function closeAdminPanel() { document.getElementById('adminModal').classList.add('hidden'); }
         function closeModal() { document.getElementById('notificationModal').classList.add('hidden'); }
-
         function showModal(title, msg, icon) {
-            document.getElementById('modalTitle').innerText = title;
-            document.getElementById('modalMessage').innerText = msg;
-            document.getElementById('modalIcon').className = `fa-solid ${icon}`;
-            document.getElementById('notificationModal').classList.remove('hidden');
+            document.getElementById('modalTitle').innerText = title; document.getElementById('modalMessage').innerText = msg;
+            document.getElementById('modalIcon').className = `fa-solid ${icon}`; document.getElementById('notificationModal').classList.remove('hidden');
         }
 
         async function saveReseller() {
-            const p = { Name: document.getElementById('newResellerName').value, Username: document.getElementById('newResellerUsername').value, Password: document.getElementById('newResellerPassword').value, Companies: [] };
-            const r = await fetch('/api/Admin/resellers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
-            if (r.ok) { await fetchResellers(); populateAdminDropdowns(); showModal('Done', 'Reseller created.', 'fa-check text-green-500'); }
+            const p = { Name: document.getElementById('newResellerName').value, Username: document.getElementById('newResellerUsername').value, Password: document.getElementById('newResellerPassword').value };
+            if (await (await fetch('/api/Admin/resellers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })).ok) { await fetchResellers(); populateAdminDropdowns(); showModal('Done', 'Reseller created.', 'fa-check text-green-500'); }
         }
 
         async function saveCompany() {
-            const rId = document.getElementById('newCompReseller').value;
-            const p = { Name: document.getElementById('newCompName').value, Mobility_User1: document.getElementById('newCompMobUser').value, Mobility_Pass: document.getElementById('newCompMobPass').value, ResellerId: parseInt(rId), Units: [], Cards: [] };
-            const r = await fetch('/api/Admin/companies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
-            if (r.ok) {
-                await fetchCompanies(); initAdminOrUser(); populateAdminDropdowns();
-                showModal('Done', 'Company created.', 'fa-check text-green-500');
-            }
+            const p = { Name: document.getElementById('newCompName').value, Mobility_User1: document.getElementById('newCompMobUser').value, Mobility_Pass: document.getElementById('newCompMobPass').value, ResellerId: parseInt(document.getElementById('newCompReseller').value) };
+            if (await (await fetch('/api/Admin/companies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })).ok) { await fetchCompanies(); initAdminOrUser(); populateAdminDropdowns(); showModal('Done', 'Company created.', 'fa-check text-green-500'); }
         }
 
         async function saveUser() {
             const cId = document.getElementById('newUserCompany').value;
             const p = { Username: document.getElementById('newUserUsername').value, PasswordHash: document.getElementById('newUserPassword').value, Role: document.getElementById('newUserRole').value, CompanyId: cId ? parseInt(cId) : null };
-            const r = await fetch('/api/Admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
-            if (r.ok) { showModal('Done', 'User created.', 'fa-check text-green-500'); }
+            if (await (await fetch('/api/Admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) })).ok) { await fetchAllUsers(); showModal('Done', 'User created.', 'fa-check text-green-500'); }
         }
     </script>
 </body>
